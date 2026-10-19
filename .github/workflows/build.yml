@@ -43,7 +43,7 @@ jobs:
             "VerQueryValueA", "VerQueryValueW"
           )
           foreach ($name in $required) {
-            if ($exports -notmatch "(?m)\s$name\s*$") { throw "Missing export: $name" }
+            if (!$exports.Contains($name)) { throw "Missing export: $name" }
           }
       - name: Stage package
         shell: pwsh
