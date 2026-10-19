@@ -3,6 +3,7 @@
 #include <fstream>
 #include <mutex>
 #include <cwchar>
+#include <cstdlib>
 
 extern "C" IMAGE_DOS_HEADER __ImageBase;
 
