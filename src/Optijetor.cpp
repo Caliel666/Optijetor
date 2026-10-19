@@ -5,6 +5,8 @@
 #include <fstream>
 #include <mutex>
 
+extern "C" IMAGE_DOS_HEADER __ImageBase;
+
 static HMODULE g_systemVersion = nullptr;
 static std::wstring g_optiscalerPath;
 static DWORD g_delayMs = 1500;
@@ -21,8 +23,6 @@ static std::wstring ModuleDirectory()
     return slash == std::wstring::npos ? L"." : value.substr(0, slash);
 }
 
-extern "C" IMAGE_DOS_HEADER __ImageBase;
-
 static void Log(const std::wstring& message)
 {
     if (!g_logging) return;
@@ -34,7 +34,7 @@ static void Log(const std::wstring& message)
 static std::wstring ReadString(const wchar_t* section, const wchar_t* key, const wchar_t* fallback)
 {
     wchar_t value[32768]{};
-    GetPrivateProfileStringW(section, key, fallback, value, static_cast<DWORD>(std::size(value)), (g_root + L"\\OpenNR.ini").c_str());
+    GetPrivateProfileStringW(section, key, fallback, value, 32768, (g_root + L"\\OpenNR.ini").c_str());
     return value;
 }
 
@@ -60,7 +60,7 @@ static DWORD WINAPI LoadOptiScalerThread(void*)
         return 0;
     }
     HMODULE loaded = LoadLibraryExW(g_optiscalerPath.c_str(), nullptr, LOAD_WITH_ALTERED_SEARCH_PATH);
-    if (loaded) Log(L"OptiScaler DLL loaded as a module. Verify game-specific initialization; module load alone may not activate every proxy hook.");
+    if (loaded) Log(L"OptiScaler DLL loaded as a module. Module load alone may not activate every graphics-proxy hook.");
     else Log(L"LoadLibraryExW failed for OptiScaler (Win32 error " + std::to_wstring(GetLastError()) + L").");
     return 0;
 }
