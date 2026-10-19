@@ -189,7 +189,7 @@ static DWORD WINAPI LoadOptiScalerThread(void*)
     // Put the game root first in the legacy DLL search order, then add the real
     // OptiScaler directory for APIs that honor AddDllDirectory.
     SetDllDirectoryW(g_gameRoot.c_str());
-    DLL_DIRECTORY_COOKIE cookie = AddDllDirectory(ParentDirectory(g_optiscalerPath));
+    DLL_DIRECTORY_COOKIE cookie = AddDllDirectory(ParentDirectory(g_optiscalerPath).c_str());
     Log(L"Attempting direct OptiScaler load from: " + g_optiscalerPath);
     HMODULE loaded = LoadLibraryExW(g_optiscalerPath.c_str(), nullptr,
         LOAD_WITH_ALTERED_SEARCH_PATH);
@@ -224,7 +224,7 @@ FORWARD(DWORD, GetFileVersionInfoSizeExW, (DWORD a, LPCWSTR b, LPDWORD c), (a,b,
 FORWARD(DWORD, VerLanguageNameA, (DWORD a, LPSTR b, DWORD c), (a,b,c))
 FORWARD(DWORD, VerLanguageNameW, (DWORD a, LPWSTR b, DWORD c), (a,b,c))
 FORWARD(DWORD, VerFindFileA, (DWORD a, LPCSTR b, LPCSTR c, LPCSTR d, LPSTR e, PUINT f, LPSTR g, PUINT h), (a,b,c,d,e,f,g,h))
-FORWARD(DWORD, VerFindFileW, (DWORD a, LPCWSTR b, LPCWSTR c, LPCWSTR d, LPCWSTR e, LPWSTR f, PUINT g, LPWSTR h, PUINT i), (a,b,c,d,e,f,g,h))
+FORWARD(DWORD, VerFindFileW, (DWORD a, LPCWSTR b, LPCWSTR c, LPCWSTR d, LPWSTR e, PUINT f, LPWSTR g, PUINT h), (a,b,c,d,e,f,g,h))
 FORWARD(DWORD, VerInstallFileA, (DWORD a, LPCSTR b, LPCSTR c, LPCSTR d, LPCSTR e, LPCSTR f, LPSTR g, PUINT h), (a,b,c,d,e,f,g,h))
 FORWARD(DWORD, VerInstallFileW, (DWORD a, LPCWSTR b, LPCWSTR c, LPCWSTR d, LPCWSTR e, LPCWSTR f, LPWSTR g, PUINT h), (a,b,c,d,e,f,g,h))
 FORWARD(BOOL, VerQueryValueA, (LPCVOID a, LPCSTR b, LPVOID* c, PUINT d), (a,b,c,d))
