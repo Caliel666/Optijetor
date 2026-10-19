@@ -19,8 +19,8 @@ Optijetor loads the configured OptiScaler DLL **directly from its actual install
 ; Absolute path to your separate OptiScaler DLL, renamed to version.dll
 OptiScalerPath=C:\OptiScaler\version.dll
 
-; Delay before attempting to load OptiScaler (milliseconds; 0-30000)
-LoadDelayMs=1500
+; Delay before attempting to load OptiScaler (milliseconds; 0-30000; default 5000)
+LoadDelayMs=5000
 
 ; 1 writes OpenNR.log beside the game's version.dll proxy; 0 disables file logging
 Logging=1
@@ -43,6 +43,6 @@ Open `Optijetor.sln` in Visual Studio 2022 with the **Desktop development with C
 ## Compatibility notes
 
 - Optijetor forwards the common named version-information exports to Windows System32 `version.dll`.
-- OptiScaler is loaded directly from the configured full path, using its directory for dependency lookup. This avoids moving or mirroring companion files, but the actual game's loading path still needs to be tested.
+- OptiScaler is loaded directly from the configured full path using Windows' altered-search-path behavior so companion DLLs can be resolved beside it. The default delay is 5 seconds to reduce interference with early game startup. The actual game loading path still needs to be tested.
 - A successful CI build proves the proxy compiles and its named exports exist; it does not replace testing the graphics-hook path in the target game.
 - Proxy DLLs can conflict with another proxy or violate a game's rules; use only where permitted.
