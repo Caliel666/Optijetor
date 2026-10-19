@@ -8,7 +8,7 @@ extern "C" IMAGE_DOS_HEADER __ImageBase;
 
 static HMODULE g_systemVersion = nullptr;
 static std::wstring g_optiscalerPath;
-static DWORD g_delayMs = 1500;
+static DWORD g_delayMs = 5000;
 static bool g_logging = true;
 static std::wstring g_root;
 static std::mutex g_logMutex;
@@ -49,7 +49,7 @@ static void InitializeConfig()
     wchar_t value[32768]{};
     GetPrivateProfileStringW(L"OpenNR", L"OptiScalerPath", L"", value, 32768, ini.c_str());
     g_optiscalerPath = value;
-    g_delayMs = GetPrivateProfileIntW(L"OpenNR", L"LoadDelayMs", 1500, ini.c_str());
+    g_delayMs = GetPrivateProfileIntW(L"OpenNR", L"LoadDelayMs", 5000, ini.c_str());
     if (g_delayMs > 30000) g_delayMs = 30000;
     g_logging = GetPrivateProfileIntW(L"OpenNR", L"Logging", 1, ini.c_str()) != 0;
 }
@@ -89,13 +89,16 @@ static DWORD WINAPI LoadOptiScalerThread(void*)
         return 0;
     }
 
+    // Log before entering the Windows loader so a stalled OptiScaler load
+    // can be distinguished from a failure to read configuration.
+    Log(L"Attempting direct OptiScaler load from: " + g_optiscalerPath);
+
     // Load the user-supplied version.dll directly from its real installation
     // directory. No staging, temporary folders, hard links, or DLL mirroring.
-    // DLL_LOAD_DIR makes dependent DLL resolution start beside this version.dll.
+    // LOAD_WITH_ALTERED_SEARCH_PATH supports an absolute DLL path and searches
+    // its directory for dependent DLLs without staging/mirroring companions.
     HMODULE loaded = LoadLibraryExW(g_optiscalerPath.c_str(), nullptr,
-        LOAD_LIBRARY_SEARCH_DEFAULT_DIRS |
-        LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR |
-        LOAD_LIBRARY_SEARCH_USER_DIRS);
+        LOAD_WITH_ALTERED_SEARCH_PATH);
 
     if (loaded) {
         Log(L"Loaded OptiScaler directly as version.dll: " + g_optiscalerPath);
