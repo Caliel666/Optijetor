@@ -15,6 +15,27 @@ jobs:
         uses: microsoft/setup-msbuild@v2
       - name: Build x64 Release
         run: msbuild Optijetor.sln /m /p:Configuration=Release /p:Platform=x64
+      - name: Verify x64 image and required exports
+        shell: pwsh
+        run: |
+          $dll = "artifacts/Release/version.dll"
+          if (!(Test-Path $dll)) { throw "Build did not produce $dll" }
+          $headers = (& dumpbin /headers $dll) -join "`n"
+          if ($headers -notmatch "8664 machine (x64)") { throw "version.dll is not an x64 PE image" }
+          $exports = (& dumpbin /exports $dll) -join "`n"
+          $required = @(
+            "GetFileVersionInfoA", "GetFileVersionInfoW",
+            "GetFileVersionInfoExA", "GetFileVersionInfoExW",
+            "GetFileVersionInfoSizeA", "GetFileVersionInfoSizeW",
+            "GetFileVersionInfoSizeExA", "GetFileVersionInfoSizeExW",
+            "VerLanguageNameA", "VerLanguageNameW",
+            "VerFindFileA", "VerFindFileW",
+            "VerInstallFileA", "VerInstallFileW",
+            "VerQueryValueA", "VerQueryValueW"
+          )
+          foreach ($name in $required) {
+            if ($exports -notmatch "(?m)\s$name\s*$") { throw "Missing export: $name" }
+          }
       - name: Stage package
         shell: pwsh
         run: |
