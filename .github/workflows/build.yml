@@ -20,9 +20,18 @@ jobs:
         run: |
           $dll = "artifacts/Release/version.dll"
           if (!(Test-Path $dll)) { throw "Build did not produce $dll" }
-          $headers = (& dumpbin /headers $dll) -join "`n"
-          if ($headers -notmatch "8664 machine (x64)") { throw "version.dll is not an x64 PE image" }
-          $exports = (& dumpbin /exports $dll) -join "`n"
+          $pf86 = [Environment]::GetFolderPath("ProgramFilesX86")
+          $vswhere = Join-Path $pf86 "Microsoft Visual Studio\Installer\vswhere.exe"
+          $vs = & $vswhere -latest -products "*" -property installationPath
+          $dumpbin = Get-ChildItem (Join-Path $vs "VC\Tools\MSVC") -Directory |
+            Sort-Object Name -Descending |
+            ForEach-Object { Join-Path $_.FullName "bin\Hostx64\x64\dumpbin.exe" } |
+            Where-Object { Test-Path $_ } |
+            Select-Object -First 1
+          if (!$dumpbin) { throw "Could not locate the x64 Visual C++ dumpbin.exe" }
+          $headers = (& $dumpbin /headers $dll | Out-String)
+          if (!$headers.Contains("8664 machine (x64)")) { throw "version.dll is not an x64 PE image" }
+          $exports = (& $dumpbin /exports $dll | Out-String)
           $required = @(
             "GetFileVersionInfoA", "GetFileVersionInfoW",
             "GetFileVersionInfoExA", "GetFileVersionInfoExW",
