@@ -1,43 +1,54 @@
 # Optijetor
 
-A small x64 `version.dll` proxy/bootstrapper for loading a separately installed OptiScaler build.
+An x64 `version.dll` proxy/bootstrapper that forwards Windows version APIs and attempts to load a separately located OptiScaler installation.
 
-> **Status: early prototype.** Loading `OptiScaler.dll` as a module is not guaranteed to reproduce the initialization path of a graphics API proxy. This project deliberately logs the result and does not claim that every OptiScaler build will initialize through this method. A follow-up integration should use the supported OptiScaler proxy/loader mechanism for the target game.
+## Important implementation detail
 
-## Layout
+OptiScaler selects its working mode from the loaded DLL filename. Loading `OptiScaler.dll` directly is not equivalent to loading it as `version.dll`. Optijetor therefore copies the configured DLL to a per-process `OpenNR-<PID>\\version.dll` staging folder beside the configured DLL, then loads that staged copy. The original OptiScaler DLL is not overwritten.
+
+This is a practical bootstrap implementation, but it still needs to be tested in a real game with the target OptiScaler build. OptiScaler's companion files and configuration must be accessible, and its `MainDllPath` setting should point to the folder containing the full OptiScaler installation when that differs from the default game-local `OptiScaler` folder.
+
+## Files
 
 - `version.dll` — place beside the game executable.
-- `OpenNR.ini` — optional configuration beside `version.dll`.
-- OptiScaler files — remain in their own directory, configured by absolute path.
+- `OpenNR.ini` — place beside `version.dll`.
+- OptiScaler — keep its DLL and companion files in a separate, dedicated folder.
 
 ## OpenNR.ini
 
 ```ini
 [OpenNR]
-; Absolute path to the OptiScaler DLL. Use double backslashes only if your editor requires them.
-OptiScalerPath=C:\\OptiScaler\\OptiScaler.dll
+; Absolute path to the separate OptiScaler DLL
+OptiScalerPath=C:\OptiScaler\OptiScaler.dll
 
-; Delay before attempting to load OptiScaler (milliseconds). Default: 1500.
-; Tune this for the game's startup; very early loading can be too early for some engines.
+; Delay before attempting to load OptiScaler (milliseconds; 0-30000)
 LoadDelayMs=1500
 
-; 1 writes a small OpenNR.log beside version.dll; 0 disables file logging.
+; 1 writes OpenNR.log beside version.dll; 0 disables file logging
 Logging=1
 ```
 
-The path must point to a real DLL. Relative paths are intentionally not supported to avoid ambiguous working-directory behavior.
+Use a normal Windows path with single backslashes. The path must point to an existing DLL; relative paths are not supported.
 
 ## Build
 
-Open `Optijetor.sln` in Visual Studio 2022 with the **Desktop development with C++** workload, select **Release | x64**, and build. GitHub Actions builds the same x64 configuration and publishes the build output as an artifact.
+Open `Optijetor.sln` in Visual Studio 2022 with the **Desktop development with C++** workload, select **Release | x64**, and build. GitHub Actions builds the same configuration and uploads a `Optijetor-x64` artifact.
 
 ## Installation
 
-1. Back up the game's existing `version.dll` if one exists. Some games or launchers depend on another proxy.
+1. Back up any existing `version.dll` beside the game executable; another proxy may be required by the game or launcher.
 2. Copy the built `version.dll` and `OpenNR.ini` beside the game executable.
-3. Set `OptiScalerPath` to the separate OptiScaler DLL.
-4. Launch the game and inspect `OpenNR.log` if loading fails.
+3. Set `OptiScalerPath` to the full path of the separate OptiScaler DLL in its dedicated folder.
+4. Confirm the OptiScaler configuration and companion files are available. If necessary, set OptiScaler's `MainDllPath` to that installation folder.
+5. Launch the game and inspect `OpenNR.log` if loading fails.
 
-## Safety / compatibility
+## Logging and cleanup
 
-This is a local, opt-in DLL loader. It does not download or replace OptiScaler files, modify game files beyond the proxy/config you place, or attempt to bypass anti-cheat. Do not use proxy DLLs with games whose rules prohibit them. The proxy forwards version-information APIs to the Windows system `version.dll` and attempts OptiScaler loading after a configurable delay.
+The bootstrapper writes diagnostic messages to `OpenNR.log`. OptiScaler is staged under a process-specific subfolder so the bootstrapper never overwrites an existing `version.dll` in the OptiScaler directory. A staged copy may remain after the game exits; it is not safe to delete a mapped DLL during process teardown.
+
+## Compatibility notes
+
+- This project forwards the common named version-information exports to the Windows system `version.dll`.
+- It does not download OptiScaler, patch game files, or bypass anti-cheat.
+- Proxy DLLs can conflict with another proxy or violate a game's rules; use only where permitted.
+- Successful CI compilation proves the proxy builds, not that every OptiScaler/game combination initializes correctly.
