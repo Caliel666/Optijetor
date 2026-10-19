@@ -1,0 +1,58 @@
+name: Build Optijetor
+
+on:
+  push:
+    branches: [main, "feature/**"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@v2
+      - name: Build x64 Release
+        run: msbuild Optijetor.sln /m /p:Configuration=Release /p:Platform=x64
+      - name: Verify x64 image and required exports
+        shell: pwsh
+        run: |
+          $dll = "artifacts/Release/version.dll"
+          if (!(Test-Path $dll)) { throw "Build did not produce $dll" }
+          $pf86 = [Environment]::GetFolderPath("ProgramFilesX86")
+          $vswhere = Join-Path $pf86 "Microsoft Visual Studio\Installer\vswhere.exe"
+          $vs = & $vswhere -latest -products "*" -property installationPath
+          $dumpbin = Get-ChildItem (Join-Path $vs "VC\Tools\MSVC") -Directory |
+            Sort-Object Name -Descending |
+            ForEach-Object { Join-Path $_.FullName "bin\Hostx64\x64\dumpbin.exe" } |
+            Where-Object { Test-Path $_ } |
+            Select-Object -First 1
+          if (!$dumpbin) { throw "Could not locate the x64 Visual C++ dumpbin.exe" }
+          $headers = (& $dumpbin /headers $dll | Out-String)
+          if (!$headers.Contains("8664 machine (x64)")) { throw "version.dll is not an x64 PE image" }
+          $exports = (& $dumpbin /exports $dll | Out-String)
+          $required = @(
+            "GetFileVersionInfoA", "GetFileVersionInfoW",
+            "GetFileVersionInfoExA", "GetFileVersionInfoExW",
+            "GetFileVersionInfoSizeA", "GetFileVersionInfoSizeW",
+            "GetFileVersionInfoSizeExA", "GetFileVersionInfoSizeExW",
+            "VerLanguageNameA", "VerLanguageNameW",
+            "VerFindFileA", "VerFindFileW",
+            "VerInstallFileA", "VerInstallFileW",
+            "VerQueryValueA", "VerQueryValueW"
+          )
+          foreach ($name in $required) {
+            if (!$exports.Contains($name)) { throw "Missing export: $name" }
+          }
+      - name: Stage package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path package | Out-Null
+          Copy-Item artifacts/Release/version.dll package/
+          Copy-Item OpenNR.ini package/
+          Copy-Item README.md package/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Optijetor-x64
+          path: package/
